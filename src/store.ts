@@ -20,6 +20,7 @@ export interface GeneratorStore {
     weaponFolderName: string;
     weaponName: string;
     basePaths: Record<WeaponState, string>;
+    basePathsSight: Record<WeaponState, string>;
 
     // State Offsets (e.g. Scope=+1000)
     offsets: Record<WeaponState, number>;
@@ -31,6 +32,7 @@ export interface GeneratorStore {
     setBaseId: (val: number) => void;
     setPathConfig: (folderName: string, weaponName: string) => void; // New Action
     setBasePath: (state: WeaponState, path: string) => void;
+    setBasePathSight: (state: WeaponState, path: string) => void;
     setOffset: (state: WeaponState, val: number) => void;
 
     addAttachment: (categoryId: string) => void;
@@ -60,6 +62,13 @@ const generateBasePaths = (folder: string, name: string): Record<WeaponState, st
     sprint: `minecraft:item/eft/weapons/${folder}/${name}_sprint`
 });
 
+const generateBasePathsSight = (folder: string, name: string): Record<WeaponState, string> => ({
+    default: `minecraft:item/eft/weapons/${folder}/${name}_sight_default`,
+    scope: `minecraft:item/eft/weapons/${folder}/${name}_sight_scope`,
+    reload: `minecraft:item/eft/weapons/${folder}/${name}_reload`,
+    sprint: `minecraft:item/eft/weapons/${folder}/${name}_sight_sprint`
+});
+
 // --- Store ---
 
 export const useStore = create<GeneratorStore>((set) => ({
@@ -67,6 +76,7 @@ export const useStore = create<GeneratorStore>((set) => ({
     weaponFolderName: INITIAL_BASE.folder,
     weaponName: INITIAL_BASE.name,
     basePaths: generateBasePaths(INITIAL_BASE.folder, INITIAL_BASE.name),
+    basePathsSight: generateBasePathsSight(INITIAL_BASE.folder, INITIAL_BASE.name),
     offsets: { ...INITIAL_OFFSETS },
     attachments: [],
 
@@ -75,6 +85,7 @@ export const useStore = create<GeneratorStore>((set) => ({
     setPathConfig: (folder, name) => set((s) => {
         // Regenerate Base Paths
         const newBasePaths = generateBasePaths(folder, name);
+        const newBasePathsSight = generateBasePathsSight(folder, name);
 
         // Regenerate All Attachment Paths
         const newAttachments = s.attachments.map(a => {
@@ -97,12 +108,17 @@ export const useStore = create<GeneratorStore>((set) => ({
             weaponFolderName: folder,
             weaponName: name,
             basePaths: newBasePaths,
+            basePathsSight: newBasePathsSight,
             attachments: newAttachments
         };
     }),
 
     setBasePath: (state, path) => set((s) => ({
         basePaths: { ...s.basePaths, [state]: path }
+    })),
+
+    setBasePathSight: (state, path) => set((s) => ({
+        basePathsSight: { ...s.basePathsSight, [state]: path }
     })),
 
     setOffset: (state, val) => set((s) => ({

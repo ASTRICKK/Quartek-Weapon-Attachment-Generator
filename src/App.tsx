@@ -86,6 +86,7 @@ export default function App() {
             const result = generateJson(
                 store.baseId,
                 store.basePaths,
+                store.basePathsSight, // New Arg
                 store.offsets,
                 store.attachments,
                 CATEGORIES,
@@ -169,6 +170,20 @@ export default function App() {
                                 type="text"
                                 value={store.basePaths[state]}
                                 onChange={e => store.setBasePath(state, e.target.value)}
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                <h3>Base Model Paths (With Sight)</h3>
+                <div className="grid-1">
+                    {STATES.map(state => (
+                        <div key={state}>
+                            <label>{state} Path (Sight)</label>
+                            <input
+                                type="text"
+                                value={store.basePathsSight[state]}
+                                onChange={e => store.setBasePathSight(state, e.target.value)}
                             />
                         </div>
                     ))}

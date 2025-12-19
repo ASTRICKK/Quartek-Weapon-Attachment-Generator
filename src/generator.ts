@@ -12,6 +12,7 @@ interface JsonModelEntry {
 }
 
 interface OutputJson {
+    hand_animation_on_swap: boolean;
     model: {
         type: string;
         property: string;
@@ -25,6 +26,7 @@ interface OutputJson {
 export function generateJson(
     baseId: number,
     basePaths: Record<WeaponState, string>,
+    basePathsSight: Record<WeaponState, string>, // New Argument
     offsets: Record<WeaponState, number>,
     attachments: AttachmentConfig[],
     categories: Array<{ id: string; label: string }>,
@@ -32,28 +34,24 @@ export function generateJson(
 ): OutputJson {
 
     // 1. Group Attachments by Category
-    // We need to form "Options" for each category.
-    // Option 1: "None" (Add 0, no model)
-    // Option 2..N: The added attachments
-
     const categoryGroups = categories.map(cat => {
         const catItems = attachments.filter(a => a.categoryId === cat.id);
 
         // Always include "None" option
-        const noneOption = { addValue: 0, paths: null, id: 'none' };
+        const noneOption = { addValue: 0, paths: null, id: 'none', categoryId: cat.id };
 
         // Map items to options
         const otherOptions = catItems.map(item => ({
             addValue: item.addValue,
             paths: item.paths,
-            id: item.id
+            id: item.id,
+            categoryId: item.categoryId
         }));
 
         return [noneOption, ...otherOptions];
     });
 
     // 2. Cartesian Product
-    // [[A,B], [C,D]] => [[A,C], [A,D], [B,C], [B,D]]
     const combinations = categoryGroups.reduce((a, b) => {
         return a.flatMap(x => b.map(y => [...x, y]));
     }, [[]] as any[][]);
@@ -63,8 +61,15 @@ export function generateJson(
     const states: WeaponState[] = ['default', 'scope', 'reload', 'sprint'];
 
     combinations.forEach(combo => {
-        // combo is an array of selected options (one from each category)
+        // combo is an array of selected options
         const totalAdd = combo.reduce((sum, item) => sum + item.addValue, 0);
+
+        // CHECK: Does this combo have a sight?
+        // We look for any item where categoryId is 'sight' and it's NOT the "none" option (id !== 'none')
+        const hasSight = combo.some(item => item.categoryId === 'sight' && item.id !== 'none');
+
+        // Select the correct base paths
+        const currentBasePaths = hasSight ? basePathsSight : basePaths;
 
         // For each state
         states.forEach(state => {
@@ -72,9 +77,9 @@ export function generateJson(
             const finalThreshold = baseId + totalAdd + offset;
 
             // Build Model List
-            // 1. Base Weapon
+            // 1. Base Weapon (Context Aware)
             const models = [
-                { type: 'minecraft:model', model: basePaths[state] || '' }
+                { type: 'minecraft:model', model: currentBasePaths[state] || '' }
             ];
 
             // 2. Attachments
@@ -98,10 +103,6 @@ export function generateJson(
     });
 
     // 4. Merge
-    // Simple strategy: rebuild the entries list.
-    // Ideally, preservation of OTHER thresholds that are NOT in our range is good,
-    // but for this specific tool, replacing collisions is the goal.
-
     let finalEntries = newEntries;
     let fallback = { type: 'model', model: 'item/eft/loots/aabattery' };
 
@@ -109,12 +110,9 @@ export function generateJson(
         if (existingJson.model.fallback) fallback = existingJson.model.fallback;
 
         const map = new Map<number, JsonModelEntry>();
-        // Load existing
         existingJson.model.entries.forEach((e: any) => map.set(e.threshold, e));
-        // Overwrite new
         newEntries.forEach(e => map.set(e.threshold, e));
 
-        // Convert back to array
         finalEntries = Array.from(map.values());
     }
 
@@ -122,6 +120,7 @@ export function generateJson(
     finalEntries.sort((a, b) => a.threshold - b.threshold);
 
     return {
+        hand_animation_on_swap: false,
         model: {
             type: 'range_dispatch',
             property: 'custom_model_data',
