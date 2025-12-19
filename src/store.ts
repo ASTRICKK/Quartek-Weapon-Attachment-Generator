@@ -17,6 +17,8 @@ export interface AttachmentConfig {
 export interface GeneratorStore {
     // Base Configuration
     baseId: number;
+    weaponFolderName: string;
+    weaponName: string;
     basePaths: Record<WeaponState, string>;
 
     // State Offsets (e.g. Scope=+1000)
@@ -27,6 +29,7 @@ export interface GeneratorStore {
 
     // Actions
     setBaseId: (val: number) => void;
+    setPathConfig: (folderName: string, weaponName: string) => void; // New Action
     setBasePath: (state: WeaponState, path: string) => void;
     setOffset: (state: WeaponState, val: number) => void;
 
@@ -44,22 +47,59 @@ const INITIAL_OFFSETS: Record<WeaponState, number> = {
     sprint: 3000
 };
 
-const INITIAL_BASE_PATHS: Record<WeaponState, string> = {
-    default: 'minecraft:item/eft/m4a1/weapons/default',
-    scope: 'minecraft:item/eft/m4a1/weapons/scope',
-    reload: 'minecraft:item/eft/m4a1/weapons/reload',
-    sprint: 'minecraft:item/eft/m4a1/weapons/sprint'
+// Start with empty to force generation from defaults, or set explicitly
+const INITIAL_BASE = {
+    folder: 'm4a1',
+    name: 'm4a1'
 };
+
+const generateBasePaths = (folder: string, name: string): Record<WeaponState, string> => ({
+    default: `minecraft:item/eft/weapons/${folder}/${name}_default`,
+    scope: `minecraft:item/eft/weapons/${folder}/${name}_scope`,
+    reload: `minecraft:item/eft/weapons/${folder}/${name}_reload`,
+    sprint: `minecraft:item/eft/weapons/${folder}/${name}_sprint`
+});
 
 // --- Store ---
 
 export const useStore = create<GeneratorStore>((set) => ({
     baseId: 440,
-    basePaths: { ...INITIAL_BASE_PATHS },
+    weaponFolderName: INITIAL_BASE.folder,
+    weaponName: INITIAL_BASE.name,
+    basePaths: generateBasePaths(INITIAL_BASE.folder, INITIAL_BASE.name),
     offsets: { ...INITIAL_OFFSETS },
     attachments: [],
 
     setBaseId: (val) => set({ baseId: val }),
+
+    setPathConfig: (folder, name) => set((s) => {
+        // Regenerate Base Paths
+        const newBasePaths = generateBasePaths(folder, name);
+
+        // Regenerate All Attachment Paths
+        const newAttachments = s.attachments.map(a => {
+            const categoryId = a.categoryId;
+            const categoryFolder = SECTION_FOLDERS[categoryId] || categoryId;
+            const cleanName = a.name.replace(/\s+/g, '_');
+
+            return {
+                ...a,
+                paths: {
+                    default: `minecraft:item/eft/weapons/${folder}/${categoryFolder}/${cleanName}_default`,
+                    scope: `minecraft:item/eft/weapons/${folder}/${categoryFolder}/${cleanName}_scope`,
+                    reload: `minecraft:item/eft/weapons/${folder}/${categoryFolder}/${cleanName}_reload`,
+                    sprint: `minecraft:item/eft/weapons/${folder}/${categoryFolder}/${cleanName}_sprint`
+                }
+            };
+        });
+
+        return {
+            weaponFolderName: folder,
+            weaponName: name,
+            basePaths: newBasePaths,
+            attachments: newAttachments
+        };
+    }),
 
     setBasePath: (state, path) => set((s) => ({
         basePaths: { ...s.basePaths, [state]: path }
@@ -70,16 +110,41 @@ export const useStore = create<GeneratorStore>((set) => ({
     })),
 
     addAttachment: (categoryId) => set((s) => {
+        const category = CATEGORIES.find(c => c.id === categoryId);
+        if (!category) return {};
+
+        const existingItems = s.attachments.filter(a => a.categoryId === categoryId);
+        if (typeof category.limit === 'number' && existingItems.length >= category.limit) {
+            return {}; // Limit reached
+        }
+
+        // Find first available slot
+        let nextValue = category.step;
+        for (let i = 1; i <= (category.limit || 999); i++) {
+            const candidate = i * category.step;
+            const taken = existingItems.some(a => a.addValue === candidate);
+            if (!taken) {
+                nextValue = candidate;
+                break;
+            }
+        }
+
+        const folder = SECTION_FOLDERS[categoryId] || categoryId;
+        const weaponFolder = s.weaponFolderName;
+
+        const name = 'New Item';
+        const cleanName = name.replace(/\s+/g, '_');
+
         const newAttachment: AttachmentConfig = {
             id: crypto.randomUUID(),
             categoryId,
-            name: 'New Item',
-            addValue: 0,
+            name,
+            addValue: nextValue,
             paths: {
-                default: '',
-                scope: '',
-                reload: '',
-                sprint: ''
+                default: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_default`,
+                scope: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_scope`,
+                reload: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_reload`,
+                sprint: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_sprint`
             }
         };
         return { attachments: [...s.attachments, newAttachment] };
@@ -90,9 +155,28 @@ export const useStore = create<GeneratorStore>((set) => ({
     })),
 
     updateAttachment: (id, updates) => set((s) => ({
-        attachments: s.attachments.map(a =>
-            a.id === id ? { ...a, ...updates } : a
-        )
+        attachments: s.attachments.map(a => {
+            if (a.id !== id) return a;
+
+            const updated = { ...a, ...updates };
+
+            // If name changed, update paths automatically
+            if (updates.name) {
+                const categoryId = a.categoryId;
+                const folder = SECTION_FOLDERS[categoryId] || categoryId;
+                const weaponFolder = s.weaponFolderName;
+                const cleanName = updates.name.replace(/\s+/g, '_');
+
+                updated.paths = {
+                    default: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_default`,
+                    scope: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_scope`,
+                    reload: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_reload`,
+                    sprint: `minecraft:item/eft/weapons/${weaponFolder}/${folder}/${cleanName}_sprint`
+                };
+            }
+
+            return updated;
+        })
     })),
 
     updateAttachmentPath: (id, state, path) => set((s) => ({
@@ -104,3 +188,23 @@ export const useStore = create<GeneratorStore>((set) => ({
         )
     }))
 }));
+
+// --- Constants ---
+
+export const SECTION_FOLDERS: Record<string, string> = {
+    sight: 'sights',
+    suppressor: 'suppressor',
+    laser: 'lasers',
+    stock: 'stocks',
+    magazine: 'magazines',
+    grip: 'grips'
+};
+
+export const CATEGORIES = [
+    { id: 'sight', label: 'Sights / Scope', step: 1_000_000, fmtStep: '1,000,000', range: '1M - 20M', max: '20,000,000', support: '20 Items', limit: 20 },
+    { id: 'suppressor', label: 'Suppressor', step: 100_000_000, fmtStep: '100,000,000', range: '100M', max: '100,000,000', support: '1 Item (On/Off)', limit: 1 },
+    { id: 'laser', label: 'Laser', step: 200_000_000, fmtStep: '200,000,000', range: '200M - 600M', max: '600,000', support: '3 Items', limit: 3 },
+    { id: 'stock', label: 'Stock', step: 25_000_000, fmtStep: '25,000,000', range: '25M - 75M', max: '75,000,000', support: '3 Items', limit: 3 },
+    { id: 'magazine', label: 'Magazine', step: 10_000, fmtStep: '10,000', range: '10k - 20k', max: '20,000', support: '2 Items', limit: 2 },
+    { id: 'grip', label: 'Grip', step: 100_000, fmtStep: '100,000', range: '100k - 300k', max: '300,000', support: '3 Items', limit: 3 },
+];

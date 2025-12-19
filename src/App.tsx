@@ -1,20 +1,10 @@
-
 import React, { useState } from 'react';
-import { useStore } from './store';
+import { useStore, CATEGORIES } from './store';
 import type { WeaponState, AttachmentConfig } from './store';
 import { generateJson } from './generator';
 
 // --- Constants ---
 const STATES: WeaponState[] = ['default', 'scope', 'reload', 'sprint'];
-
-const CATEGORIES = [
-    { id: 'sight', label: 'Sights / Scope', step: 1_000_000, fmtStep: '1,000,000', range: '1M - 20M', max: '20,000,000', support: '20 Items' },
-    { id: 'suppressor', label: 'Suppressor', step: 100_000_000, fmtStep: '100,000,000', range: '100M', max: '100,000,000', support: '1 Item (On/Off)' },
-    { id: 'laser', label: 'Laser', step: 200_000_000, fmtStep: '200,000,000', range: '200M - 600M', max: '600,000,000', support: '3 Items' },
-    { id: 'stock', label: 'Stock', step: 25_000_000, fmtStep: '25,000,000', range: '25M - 75M', max: '75,000,000', support: '3 Items' },
-    { id: 'magazine', label: 'Magazine', step: 10_000, fmtStep: '10,000', range: '10k - 20k', max: '20,000', support: '2 Items' },
-    { id: 'grip', label: 'Grip', step: 100_000, fmtStep: '100,000', range: '100k - 300k', max: '300,000', support: '3 Items' },
-];
 
 // --- Sub-Components ---
 
@@ -125,6 +115,28 @@ export default function App() {
             {/* Base Config Section */}
             <div className="card">
                 <h2>Base Weapon Configuration</h2>
+
+                <div className="grid-2">
+                    <div className="input-group">
+                        <label>Weapon Folder Name</label>
+                        <input
+                            type="text"
+                            value={store.weaponFolderName}
+                            onChange={e => store.setPathConfig(e.target.value, store.weaponName)}
+                            placeholder="e.g. m4a1"
+                        />
+                    </div>
+                    <div className="input-group">
+                        <label>Weapon Name</label>
+                        <input
+                            type="text"
+                            value={store.weaponName}
+                            onChange={e => store.setPathConfig(store.weaponFolderName, e.target.value)}
+                            placeholder="e.g. m4a1"
+                        />
+                    </div>
+                </div>
+
                 <div className="input-group">
                     <label>Base CustomModelData ID</label>
                     <input
@@ -167,6 +179,10 @@ export default function App() {
             {CATEGORIES.map(cat => {
                 const items = store.attachments.filter(a => a.categoryId === cat.id);
                 const hasItems = items.length > 0;
+                // Strict limit from stored config (default to 999 if simpler)
+                // We added 'limit' to the Category type in store.ts
+                const limit = (cat as any).limit || 999;
+                const isFull = items.length >= limit;
 
                 return (
                     <div key={cat.id} className="card">
@@ -192,7 +208,13 @@ export default function App() {
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={() => store.addAttachment(cat.id)}>+ Add Item</button>
+                            <button
+                                onClick={() => store.addAttachment(cat.id)}
+                                disabled={isFull}
+                                style={{ opacity: isFull ? 0.5 : 1, cursor: isFull ? 'not-allowed' : 'pointer' }}
+                            >
+                                {isFull ? 'Max Capacity' : '+ Add Item'}
+                            </button>
                         </div>
 
                         {hasItems ? (
