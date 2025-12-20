@@ -65,7 +65,7 @@ const generateBasePaths = (folder: string, name: string): Record<WeaponState, st
 const generateBasePathsSight = (folder: string, name: string): Record<WeaponState, string> => ({
     default: `minecraft:item/eft/weapons/${folder}/${name}_sight_default`,
     scope: `minecraft:item/eft/weapons/${folder}/${name}_sight_scope`,
-    reload: `minecraft:item/eft/weapons/${folder}/${name}_reload`,
+    reload: `minecraft:item/eft/weapons/${folder}/${name}_sight_reload`,
     sprint: `minecraft:item/eft/weapons/${folder}/${name}_sight_sprint`
 });
 
