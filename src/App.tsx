@@ -201,9 +201,9 @@ export default function App() {
 
                 return (
                     <div key={cat.id} className="card">
-                        <div className="flex-between" style={{ alignItems: 'flex-start' }}>
+                        <div className="flex-row-between" style={{ alignItems: 'flex-start' }}>
                             <div>
-                                <h3>{cat.label}</h3>
+                                <h2>{cat.label} <small>({cat.range})</small></h2>
                                 <div className="info-grid">
                                     <div className="info-item">
                                         <span className="label">Step (ADD)</span>
@@ -222,14 +222,69 @@ export default function App() {
                                         <span className="value">{cat.support}</span>
                                     </div>
                                 </div>
+
                             </div>
-                            <button
-                                onClick={() => store.addAttachment(cat.id)}
-                                disabled={isFull}
-                                style={{ opacity: isFull ? 0.5 : 1, cursor: isFull ? 'not-allowed' : 'pointer' }}
-                            >
-                                {isFull ? 'Max Capacity' : '+ Add Item'}
-                            </button>
+
+                            <div className="flex-row" style={{ gap: '10px' }}>
+                                {cat.id === 'sight' && (
+                                    <>
+                                        <button
+                                            className="btn"
+                                            onClick={() => {
+                                                const presets = store.categoryPresets[cat.id] || [];
+                                                const blob = new Blob([JSON.stringify(presets, null, 2)], { type: 'application/json' });
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `presets_${cat.id}.json`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                            }}
+                                            title="Download Name Sequence"
+                                        >
+                                            Download Form
+                                        </button>
+                                        <label className="btn" style={{ cursor: 'pointer' }} title="Upload Name Sequence">
+                                            Upload Form
+                                            <input
+                                                type="file"
+                                                accept=".json"
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    const reader = new FileReader();
+                                                    reader.onload = (ev) => {
+                                                        try {
+                                                            const json = JSON.parse(ev.target?.result as string);
+                                                            if (Array.isArray(json)) {
+                                                                store.setCategoryPreset(cat.id, json);
+                                                                alert(`Loaded ${json.length} names for ${cat.label}`);
+                                                            } else {
+                                                                alert('Invalid format: Expected array of strings.');
+                                                            }
+                                                        } catch (err) {
+                                                            alert('Error parsing JSON');
+                                                        }
+                                                    };
+                                                    reader.readAsText(file);
+                                                    // Reset input
+                                                    e.target.value = '';
+                                                }}
+                                            />
+                                        </label>
+                                    </>
+                                )}
+
+                                <button
+                                    onClick={() => store.addAttachment(cat.id)}
+                                    disabled={isFull}
+                                    style={{ opacity: isFull ? 0.5 : 1, cursor: isFull ? 'not-allowed' : 'pointer' }}
+                                >
+                                    {isFull ? 'Max Capacity' : '+ Add Item'}
+                                </button>
+                            </div>
                         </div>
 
                         {hasItems ? (

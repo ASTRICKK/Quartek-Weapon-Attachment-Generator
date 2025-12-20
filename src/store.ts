@@ -21,6 +21,7 @@ export interface GeneratorStore {
     weaponName: string;
     basePaths: Record<WeaponState, string>;
     basePathsSight: Record<WeaponState, string>;
+    categoryPresets: Record<string, string[]>; // New State
 
     // State Offsets (e.g. Scope=+1000)
     offsets: Record<WeaponState, number>;
@@ -31,6 +32,7 @@ export interface GeneratorStore {
     // Actions
     setBaseId: (val: number) => void;
     setPathConfig: (folderName: string, weaponName: string) => void; // New Action
+    setCategoryPreset: (categoryId: string, names: string[]) => void; // New Action
     setBasePath: (state: WeaponState, path: string) => void;
     setBasePathSight: (state: WeaponState, path: string) => void;
     setOffset: (state: WeaponState, val: number) => void;
@@ -48,6 +50,13 @@ const INITIAL_OFFSETS: Record<WeaponState, number> = {
     reload: 2000,
     sprint: 3000
 };
+
+const INITIAL_SIGHT_PRESETS = [
+    'ekp8', 'ekp8_dovetail', 'hhs1_off', 'hhs1_on', 'vudu',
+    'xps3', 'hs401g5', 'deltapoint', 'hamr_deltapoint', 'hamr_optic',
+    'snpu', 'okp7', 'okp7_dovetail', 'pso', 'srs02',
+    't1', 'valday', 'blank', 'blank', 'blank'
+];
 
 // Start with empty to force generation from defaults, or set explicitly
 const INITIAL_BASE = {
@@ -77,10 +86,15 @@ export const useStore = create<GeneratorStore>((set) => ({
     weaponName: INITIAL_BASE.name,
     basePaths: generateBasePaths(INITIAL_BASE.folder, INITIAL_BASE.name),
     basePathsSight: generateBasePathsSight(INITIAL_BASE.folder, INITIAL_BASE.name),
+    categoryPresets: { sight: INITIAL_SIGHT_PRESETS }, // Init
     offsets: { ...INITIAL_OFFSETS },
     attachments: [],
 
     setBaseId: (val) => set({ baseId: val }),
+
+    setCategoryPreset: (categoryId, names) => set((s) => ({
+        categoryPresets: { ...s.categoryPresets, [categoryId]: names }
+    })),
 
     setPathConfig: (folder, name) => set((s) => {
         // Regenerate Base Paths
@@ -136,11 +150,14 @@ export const useStore = create<GeneratorStore>((set) => ({
 
         // Find first available slot
         let nextValue = category.step;
+        let slotIndex = 0; // 0-based index for presets
+
         for (let i = 1; i <= (category.limit || 999); i++) {
             const candidate = i * category.step;
             const taken = existingItems.some(a => a.addValue === candidate);
             if (!taken) {
                 nextValue = candidate;
+                slotIndex = i - 1;
                 break;
             }
         }
@@ -148,7 +165,13 @@ export const useStore = create<GeneratorStore>((set) => ({
         const folder = SECTION_FOLDERS[categoryId] || categoryId;
         const weaponFolder = s.weaponFolderName;
 
-        const name = 'New Item';
+        // Name Logic: Preset -> "Item X" fallback
+        let name = `Item ${slotIndex + 1}`;
+        const presets = s.categoryPresets[categoryId];
+        if (presets && presets.length > slotIndex) {
+            name = presets[slotIndex];
+        }
+
         const cleanName = name.replace(/\s+/g, '_');
 
         const newAttachment: AttachmentConfig = {
