@@ -236,14 +236,16 @@ export const SECTION_FOLDERS: Record<string, string> = {
     laser: 'lasers',
     stock: 'stocks',
     magazine: 'magazines',
-    grip: 'grips'
+    grip: 'grips',
+    mount: 'mounts'
 };
 
 export const CATEGORIES = [
-    { id: 'sight', label: 'Sights / Scope', step: 1_000_000, fmtStep: '1,000,000', range: '1M - 20M', max: '20,000,000', support: '20 Items', limit: 20 },
-    { id: 'suppressor', label: 'Suppressor', step: 100_000_000, fmtStep: '100,000,000', range: '100M', max: '100,000,000', support: '1 Item (On/Off)', limit: 1 },
-    { id: 'laser', label: 'Laser', step: 200_000_000, fmtStep: '200,000,000', range: '200M - 600M', max: '600,000', support: '3 Items', limit: 3 },
-    { id: 'stock', label: 'Stock', step: 25_000_000, fmtStep: '25,000,000', range: '25M - 75M', max: '75,000,000', support: '3 Items', limit: 3 },
-    { id: 'magazine', label: 'Magazine', step: 10_000, fmtStep: '10,000', range: '10k - 20k', max: '20,000', support: '2 Items', limit: 2 },
-    { id: 'grip', label: 'Grip', step: 100_000, fmtStep: '100,000', range: '100k - 300k', max: '300,000', support: '3 Items', limit: 3 },
+    { id: 'sight', label: 'Sights / Scope', step: 100_000_000, fmtStep: '100,000,000', range: '100M - 2B', max: '2,000,000,000', support: '20 Items', limit: 20 },
+    { id: 'laser', label: 'Laser', step: 10_000_000, fmtStep: '10,000,000', range: '10M - 90M', max: '90,000,000', support: '9 Items', limit: 9 },
+    { id: 'suppressor', label: 'Suppressor', step: 5_000_000, fmtStep: '5,000,000', range: '5M', max: '5,000,000', support: '1 Item (Fixed)', limit: 1 },
+    { id: 'stock', label: 'Stock', step: 1_000_000, fmtStep: '1,000,000', range: '1M - 4M', max: '4,000,000', support: '4 Items', limit: 4 },
+    { id: 'grip', label: 'Grip', step: 100_000, fmtStep: '100,000', range: '100k - 900k', max: '900,000', support: '9 Items', limit: 9 },
+    { id: 'magazine', label: 'Magazine', step: 10_000, fmtStep: '10,000', range: '10k - 90k', max: '90,000', support: '9 Items', limit: 9 },
+    { id: 'mount', label: 'Mount', step: 5_000, fmtStep: '5,000', range: '5,000', max: '5,000', support: '1 Item (Fixed)', limit: 1 },
 ];
