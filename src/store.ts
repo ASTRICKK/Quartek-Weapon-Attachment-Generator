@@ -52,10 +52,8 @@ const INITIAL_OFFSETS: Record<WeaponState, number> = {
 };
 
 const INITIAL_SIGHT_PRESETS = [
-    'ekp8', 'ekp8_dovetail', 'hhs1_off', 'hhs1_on', 'vudu',
-    'xps3', 'hs401g5', 'deltapoint', 'hamr_deltapoint', 'hamr_optic',
-    'snpu', 'okp7', 'okp7_dovetail', 'pso', 'srs02',
-    't1', 'valday', 'blank', 'blank', 'blank'
+    'ekp8', 'hhs1_on', 'vudu', 'xps3', 'hs401g5',
+    'hamr_optic', 'okp7', 'srs02', 't1', 'valday'
 ];
 
 // Start with empty to force generation from defaults, or set explicitly
