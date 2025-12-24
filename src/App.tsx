@@ -38,6 +38,24 @@ const AttachmentRow = ({ item, onDelete }: { item: AttachmentConfig; onDelete: (
                 </div>
             </div>
 
+
+
+            {/* Optic Checkbox for Sights */}
+            {
+                item.categoryId === 'sight' && (
+                    <div style={{ marginBottom: '10px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px', color: '#ffd700' }}>
+                            <input
+                                type="checkbox"
+                                checked={!!item.isOptic}
+                                onChange={e => update(item.id, { isOptic: e.target.checked })}
+                            />
+                            Is Scope/Optic? (Uses specific optic base model)
+                        </label>
+                    </div>
+                )
+            }
+
             <div className="path-grid">
                 {STATES.map(state => (
                     <div key={state}>
@@ -51,26 +69,37 @@ const AttachmentRow = ({ item, onDelete }: { item: AttachmentConfig; onDelete: (
                     </div>
                 ))}
             </div>
-        </div>
+        </div >
     );
 };
 
 const FileUpload = ({ onLoaded }: { onLoaded: (data: any) => void }) => {
+    const [status, setStatus] = useState<string>('');
+
     const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
+        setStatus('Loading...');
+
         const r = new FileReader();
         r.onload = ev => {
             try {
-                onLoaded(JSON.parse(ev.target?.result as string));
-            } catch { alert('Invalid JSON'); }
+                const json = JSON.parse(ev.target?.result as string);
+                const count = json?.model?.entries?.length || 0;
+                onLoaded(json);
+                setStatus(`✅ Loaded: ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB) - ${count.toLocaleString()} Entries`);
+            } catch (err) {
+                setStatus('❌ Error: Invalid JSON File');
+                console.error(err);
+            }
         };
         r.readAsText(f);
     };
     return (
         <div className="card">
-            <h3>Upload Existing JSON (Optional)</h3>
+            <h3>Upload Existing JSON (To Setup Multi-Gun)</h3>
             <input type="file" onChange={onChange} accept=".json" />
+            {status && <p style={{ marginTop: '8px', fontWeight: 'bold' }}>{status}</p>}
         </div>
     );
 };
@@ -80,20 +109,28 @@ const FileUpload = ({ onLoaded }: { onLoaded: (data: any) => void }) => {
 export default function App() {
     const store = useStore();
     const [existingJson, setExistingJson] = useState<any>(null);
+    const [minify, setMinify] = useState(false);
 
     const handleDownload = () => {
         try {
+            console.log("Generating with Offsets:", store.offsets);
+            console.log("Existing JSON Entries:", existingJson?.model?.entries?.length);
+
             const result = generateJson(
                 store.baseId,
                 store.basePaths,
-                store.basePathsSight, // New Arg
+                store.basePathsSight,
+                store.basePathsOptic,
                 store.offsets,
                 store.attachments,
                 CATEGORIES,
                 existingJson
             );
 
-            const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+            console.log("Result Entries:", result.model.entries.length);
+
+            const jsonString = minify ? JSON.stringify(result) : JSON.stringify(result, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -145,6 +182,9 @@ export default function App() {
                         value={store.baseId}
                         onChange={e => store.setBaseId(Number(e.target.value))}
                     />
+                    <small style={{ color: '#aaa', display: 'block', marginTop: '4px' }}>
+                        *Standard Mode: Start <strong>100</strong>, Step <strong>100</strong> (100, 200... 900). Supports 10 Sights (Stable).
+                    </small>
                 </div>
 
                 <h3>State Offsets (ADD)</h3>
@@ -187,6 +227,24 @@ export default function App() {
                             />
                         </div>
                     ))}
+                </div>
+
+                <h3>Optic Scope Path (Override)</h3>
+                <div style={{ marginBottom: '10px' }}>
+                    <small style={{ color: '#aaa' }}>
+                        *This path is used ONLY when the weapon is in SCOPE state. Default/Reload/Sprint states will fallback to the "With Sight" path.
+                    </small>
+                </div>
+                <div className="grid-1">
+                    <div>
+                        <label>Scope Path (Optic Specific)</label>
+                        <input
+                            type="text"
+                            value={store.basePathsOptic.scope}
+                            onChange={e => store.setBasePathOptic('scope', e.target.value)}
+                            placeholder="item/w/..._op_sc_overlay"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -304,7 +362,15 @@ export default function App() {
                 );
             })}
 
-            <div className="footer">
+            <div className="footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                        type="checkbox"
+                        checked={minify}
+                        onChange={e => setMinify(e.target.checked)}
+                    />
+                    Minify Output (Reduce File Size)
+                </label>
                 <button className="btn-primary btn-large" onClick={handleDownload}>
                     GENERATE JSON
                 </button>

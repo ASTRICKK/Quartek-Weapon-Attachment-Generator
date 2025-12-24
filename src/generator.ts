@@ -26,7 +26,8 @@ interface OutputJson {
 export function generateJson(
     baseId: number,
     basePaths: Record<WeaponState, string>,
-    basePathsSight: Record<WeaponState, string>, // New Argument
+    basePathsSight: Record<WeaponState, string>,
+    basePathsOptic: Record<WeaponState, string>, // New Argument
     offsets: Record<WeaponState, number>,
     attachments: AttachmentConfig[],
     categories: Array<{ id: string; label: string }>,
@@ -38,14 +39,15 @@ export function generateJson(
         const catItems = attachments.filter(a => a.categoryId === cat.id);
 
         // Always include "None" option
-        const noneOption = { addValue: 0, paths: null, id: 'none', categoryId: cat.id };
+        const noneOption = { addValue: 0, paths: null, id: 'none', categoryId: cat.id, isOptic: false };
 
         // Map items to options
         const otherOptions = catItems.map(item => ({
             addValue: item.addValue,
             paths: item.paths,
             id: item.id,
-            categoryId: item.categoryId
+            categoryId: item.categoryId,
+            isOptic: item.isOptic // Carry over flag
         }));
 
         return [noneOption, ...otherOptions];
@@ -64,29 +66,48 @@ export function generateJson(
         // combo is an array of selected options
         const totalAdd = combo.reduce((sum, item) => sum + item.addValue, 0);
 
-        // CHECK: Does this combo have a sight?
-        // We look for any item where categoryId is 'sight' and it's NOT the "none" option (id !== 'none')
+        // CHECK: Does this combo have a sight / optic?
         const hasSight = combo.some(item => item.categoryId === 'sight' && item.id !== 'none');
+        const hasOptic = combo.some(item => item.isOptic === true && item.id !== 'none');
 
         // Select the correct base paths
-        const currentBasePaths = hasSight ? basePathsSight : basePaths;
+        // Priority Logic:
+        // 1. If Optic: Use Optic Scope for 'scope', otherwise use Sight paths for default/reload/sprint
+        // 2. If Sight: Use Sight paths for all
+        // 3. Else: Use Base paths
 
         // For each state
         states.forEach(state => {
             const offset = offsets[state];
             const finalThreshold = baseId + totalAdd + offset;
 
+            let basePath = basePaths[state] || '';
+
+            if (hasOptic) {
+                if (state === 'scope') {
+                    basePath = basePathsOptic.scope || '';
+                } else {
+                    basePath = basePathsSight[state] || '';
+                }
+            } else if (hasSight) {
+                basePath = basePathsSight[state] || '';
+            }
+
+            if (isNaN(finalThreshold)) {
+                console.error(`NaN Threshold detected! State: ${state}, Base: ${baseId}, TotalAdd: ${totalAdd}, Offset: ${offset}`);
+            }
+
             // Build Model List
             // 1. Base Weapon (Context Aware)
             const models = [
-                { type: 'minecraft:model', model: currentBasePaths[state] || '' }
+                { type: 'model', model: basePath }
             ];
 
             // 2. Attachments
             combo.forEach(item => {
                 if (item.paths && item.paths[state]) {
                     models.push({
-                        type: 'minecraft:model',
+                        type: 'model',
                         model: item.paths[state]
                     });
                 }
@@ -95,7 +116,7 @@ export function generateJson(
             newEntries.push({
                 threshold: finalThreshold,
                 model: {
-                    type: 'minecraft:composite',
+                    type: 'composite',
                     models: models
                 }
             });
@@ -111,7 +132,16 @@ export function generateJson(
 
         const map = new Map<number, JsonModelEntry>();
         existingJson.model.entries.forEach((e: any) => map.set(e.threshold, e));
+        console.log(`[DEBUG] Map Size after Existing Load: ${map.size}`);
+
+        // Log sample existing
+        if (map.size > 0) console.log('[DEBUG] Existing Sample:', existingJson.model.entries[0]);
+
         newEntries.forEach(e => map.set(e.threshold, e));
+        console.log(`[DEBUG] Map Size after New Merge: ${map.size}`);
+        console.log(`[DEBUG] New Entries Generated: ${newEntries.length}`);
+        if (newEntries.length > 0) console.log('[DEBUG] New Entry Sample (Default):', newEntries[0]);
+        if (newEntries.length > 1) console.log('[DEBUG] New Entry Sample (Scope):', newEntries[1]);
 
         finalEntries = Array.from(map.values());
     }
